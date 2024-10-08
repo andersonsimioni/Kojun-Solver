@@ -98,7 +98,9 @@ solve_puzzle_rec numbers x y n
                                 | (x >= width) = (solve_puzzle_rec numbers 0 (y-1) 0) --passa pra proxima linha
                                 
                                 --subrotina para encontrar um n novo para o grupo
-                                | (n > 0  && (already_in_group numbers (groups !! y !! x) n)) = (solve_puzzle_rec numbers x y (n+1))
+                                --esse n já existe no grupo, incrementa 1 e tenta novamente.. até encontrar um novo
+                                | (n > 0  && (already_in_group numbers (groups !! y !! x) n)) = (solve_puzzle_rec numbers x y (n+1)) 
+                                --encontrou um n que nao esta no grupo, pode setar ele e passar pro elemento ao lado
                                 | (n > 0  && not (already_in_group numbers (groups !! y !! x) n)) = (solve_puzzle_rec (replace_mtx numbers x y n) (x+1) y 0)
                                 
                                 --encontrou um elemento = 0, logo ele precisa entrar na 
