@@ -1,12 +1,3 @@
-import System.Random
-
-randomInt :: Int -> Int -> Int -> Int
-randomInt seed min max = 
-    let g = mkStdGen (seed)
-        (value, _) = randomR (min, max) g
-    in value
-    
-
 width = 8
 height = 8
 
@@ -40,9 +31,6 @@ get_arr_len :: [Int] -> Int
 get_arr_len [] = 0
 get_arr_len (h:lst) = 1 + (get_arr_len lst)
 
-
-get_random_from_arr :: [Int] -> Int -> Int
-get_random_from_arr arr seed = (arr!!((randomInt seed 1 (length arr))-1))
 
 
 get_max_from_arr :: [Int] -> Int -> Int
@@ -201,9 +189,6 @@ puzzle_is_valid numbers x y
 
 is_vertical_group :: Int -> Bool
 is_vertical_group group = ((get_group_heigth group 0 0 1000 0) - (get_group_len group 0 0) == 0)
-
-fill_cell :: [[Int]] -> Int -> Int -> Int -> [[Int]]
-fill_cell numbers x y seed = (replace_mtx numbers x y (get_random_from_arr (find_n_list_to_pos numbers x y 0 []) seed) )
                             
 
 can_fill_cell :: [[Int]] -> Int -> Int -> Bool
