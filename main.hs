@@ -229,56 +229,9 @@ solve_one_possibilities numbers x y n
 
 
 
-
---Resolve nosso PROBLEMAO
---caso n seja > 0 ela entra em uma subrotina pra tentar encontrar um n
---que encaixe dentro do grupo
-solve_puzzle_rec :: [[Int]] -> Int -> Int -> Int -> [[Int]]
-solve_puzzle_rec numbers x y n    
-                                | (y < 0) = numbers --terminou, ultimo elemento da tabela, nao tem mais nada pra resolver
-                                | (x >= width) = (solve_puzzle_rec numbers 0 (y-1) 0) --passa pra proxima linha
-                                
-                                | (n > (get_group_len (groups !! y !! x) 0 0)) = (solve_puzzle_rec numbers (x+1) y 0)
-                                
-                                --subrotina para encontrar um n novo para o grupo
-                                --esse n já existe no grupo, incrementa 1 e tenta novamente.. até encontrar um novo
-                                | (n > 0  && not (is_n_ok numbers x y n True)) = (solve_puzzle_rec numbers x y (n+1)) 
-                                --encontrou um n que nao esta no grupo, pode setar ele e passar pro elemento ao lado
-                                | (n > 0  && (is_n_ok numbers x y n True)) = (solve_puzzle_rec (replace_mtx numbers x y n) (x+1) y 0)
-                                
-                                --encontrou um elemento = 0, logo ele precisa entrar na 
-                                --subrotina para encontrar um n novo no grupo
-                                | ((numbers !! y !! x) == 0) = (solve_puzzle_rec numbers x y 1)
-                                
-                                --nenhum caso especial, passa pro elemento do lado pra continuar o preenchimento
-                                | otherwise = (solve_puzzle_rec numbers (x+1) y 0)
-
---Chama a funcao solve_puzzle_rec de forma simplificada
-solve_puzzle :: [[Int]] -> [[Int]]
-solve_puzzle numbers = (solve_puzzle_rec numbers 0 (height-1) 0)
-
-
-
-
-                                
-
-
-solve_puzzle_2 :: [[Int]] -> [[Int]] -> Int -> Int -> Int -> Int -> [[Int]]
-solve_puzzle_2 original numbers x y seed n
-                            | (n > 1000000) = numbers
-                            | (y >= height) = numbers
-                            | (x >= width) = (solve_puzzle_2 original numbers 0 (y+1) (seed+1) n)
-                            
-                            | ((numbers!!y!!x) > 0) = (solve_puzzle_2 original numbers (x+1) y (seed+1) n)
-                            | (can_fill_cell numbers x y) = (solve_puzzle_2 original (fill_cell numbers x y seed) x y (seed+1) n)
-                            
-                            | otherwise = (solve_puzzle_2 original original 0 0 (seed+1) (n+1))
-                            
-                            
-
-
-
 -- [[numbers]] x y
+-- armazena o estado do tabuleiro e as coordenadas que
+-- esta jogando naquele snapshot
 data TableSnapshot = TableSnapshot
   { numbers :: [[Int]]
   , x :: Int
@@ -290,39 +243,47 @@ data TableSnapshot = TableSnapshot
 append_pos :: [TableSnapshot] -> [Int] -> [[Int]] -> Int -> Int -> [TableSnapshot]
 append_pos (item:lst) [] numbers x y = lst
 append_pos (item:lst) (possibility:possibilities) numbers x y
-                                                    | (y>=height) = (append_pos (item:lst) possibilities numbers x y)
+                                                    --corrije a tragetoria, x passou do limite entao pula uma linha, 
+                                                    -- inclui a possibilidade com a tragetoria corrigida na pilha,
                                                     | (x>=width) = (append_pos (item:replace_new_line:lst) possibilities numbers x y)
+                                                    --nao pulou linha, segue normal, inclui a possibilidade na pilha
                                                     | (otherwise) = (append_pos (item:replace:lst) possibilities numbers x y)
                                                     where
+                                                        --possibilidade que pula 1 linha
                                                         replace_new_line = (TableSnapshot (replace_mtx numbers 0 (y+1) possibility) 0 (y+1))
+                                                        --possibilidade normal
                                                         replace = (TableSnapshot (replace_mtx numbers x y possibility) (x+1) y)
 
 
-solve_puzzle_3 :: [TableSnapshot] -> Int -> Int -> [[Int]] --[TableSnapshot]
-solve_puzzle_3 ((TableSnapshot numbers x y):lst) seed n
-                            | (valid) = numbers-- [item]
-                            -- | (n == 1000) = numbers--(item:lst) --DEBUG
+--resolve usando backtracking e pilha, vai jogando as novas possibilidades na pilha
+solve_puzzle :: [TableSnapshot] -> Int -> [[Int]]
+solve_puzzle ((TableSnapshot numbers x y):lst) n
+                            | (valid) = numbers
+                            -- | (n == 1000) = numbers --DEBUG Ignorar
                             
-                            | (x >= width) = (solve_puzzle_3 ((TableSnapshot numbers 0 (y+1)):lst) (seed+1) (n+1))
-                            -- | (y >= height && valid) = (item:lst)
-                            -- | (y >= height && not valid) = (solve_puzzle_3 lst (seed+1) (n+1))
+                            -- corrige x caso esteja fora da dimensao horizontal
+                            | (x >= width) = (solve_puzzle ((TableSnapshot numbers 0 (y+1)):lst) (n+1))
                             
-                            | ((numbers!!y!!x)/=0) = (solve_puzzle_3 ((TableSnapshot numbers (x+1) y):lst) (seed+1) (n+1))
+                            --numero já preenchido pode pular
+                            | ((numbers!!y!!x)/=0) = (solve_puzzle ((TableSnapshot numbers (x+1) y):lst) (n+1))
                             
-                            | (not zero_possibilities) = (solve_puzzle_3 (append_pos (item:lst) possibilities numbers x y) (seed+1) (n+1))
+                            --adiciona a pilha novos table snapshots com os possivies numeros
+                            | (not zero_possibilities) = (solve_puzzle (append_pos (item:lst) possibilities numbers x y) (n+1))
                             
-                            | (zero_possibilities) = (solve_puzzle_3 lst (seed+1) (n+1))
+                            --não tem mais jogadas pra fazer.. e sabemos que o numero é != de 0, ou seja, falhou... descartamos o snapshot da pilha
+                            | (zero_possibilities) = (solve_puzzle lst (n+1))
                             
-                            -- | (otherwise) = (solve_puzzle_3 (item:lst) (seed+1) (n+1))
                             where
+                                --item na ponta, usamos pra gerar novas possibilidades
                                 item = (TableSnapshot numbers x y)
-                                item_next_line = (TableSnapshot numbers 0 (y+1))
+                                --verificamos se o snapshot na cabeça da pilha é válido
                                 valid = (puzzle_is_valid numbers 0 0)
-                                next_n = ((length possibilities)-1)
+                                --vemos se as possibilidades são zero..
                                 zero_possibilities = (length possibilities == 0)
+                                --calculamos as possibilidades de números para gerar novos snapshots e colocar na pilha
                                 possibilities = (find_n_list_to_pos numbers x y 0 [])
                                 
                                 
                                 
 
-main = (putStr (print_table (solve_puzzle_3 [(TableSnapshot (solve_one_possibilities (solve_vertical_groups _numbers 0 0) 0 0 (width*height*10)) 0 0)] 123 0)))
+main = (putStr (print_table (solve_puzzle [(TableSnapshot (solve_one_possibilities (solve_vertical_groups _numbers 0 0) 0 0 (width*height*10)) 0 0)] 0)))
