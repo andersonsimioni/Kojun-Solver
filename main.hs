@@ -286,4 +286,4 @@ solve_puzzle ((TableSnapshot numbers x y):lst) n
                                 
                                 
 
-main = (putStr (print_table (solve_puzzle [(TableSnapshot (solve_one_possibilities (solve_vertical_groups _numbers 0 0) 0 0 (width*height*10)) 0 0)] 0)))
+main = (putStr ("KOJUN PUZZLE\n" ++ (print_table _numbers) ++ "\n\nSOLVING..\n\n" ++ (print_table (solve_puzzle [(TableSnapshot (solve_one_possibilities (solve_vertical_groups _numbers 0 0) 0 0 (width*height*10)) 0 0)] 0)) ))
