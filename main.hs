@@ -1,3 +1,7 @@
+--Autores
+--Anderson Simioni Assunção
+--Erika Reis da Silva
+
 width = 8
 height = 8
 
