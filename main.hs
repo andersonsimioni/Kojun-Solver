@@ -121,7 +121,7 @@ get_group_heigth group x y miny maxy
                                     
                                     
 
-
+--retorna quantidade celulas de um grupo
 get_group_len :: Int -> Int -> Int -> Int
 get_group_len group x y
                             | (y >= height) = 0 --Final da tabela, nao tem mais elementos
@@ -129,7 +129,7 @@ get_group_len group x y
                             | ((groups !! y !! x) == group) = (1 + (get_group_len group (x+1) y))
                             | (otherwise) = (get_group_len group (x+1) y)
 
-
+--Verificação regra adjacente
 adj_check :: [[Int]] -> Int -> Int -> Int -> Bool
 adj_check numbers x y n
                         --Verifica el acima - OK - testado!
@@ -141,7 +141,7 @@ adj_check numbers x y n
                         --tudo certo,
                         | otherwise = True
                         
-
+--Verificação regra ortogonal
 ortg_check :: [[Int]] -> Int -> Int -> Int -> Bool
 ortg_check numbers x y n
                         --Verifica el esquerdo
@@ -158,6 +158,7 @@ ortg_check numbers x y n
                         
                         | otherwise = True
 
+-- Verifica se pode colocar N em X Y
 is_n_ok :: [[Int]] -> Int -> Int -> Int -> Bool -> Bool
 is_n_ok numbers x y n chk_in_group
                         | (n > (get_group_len (groups!!y!!x) 0 0)) = False
@@ -167,7 +168,8 @@ is_n_ok numbers x y n chk_in_group
                         | otherwise = True
 
 
-
+--Procura quais n podem ser colocados na posição XY,
+--no caso retorna as possibilidades pra XY
 find_n_list_to_pos :: [[Int]] -> Int -> Int -> Int -> [Int] -> [Int]
 find_n_list_to_pos numbers x y n lst
                             | ((numbers!!y!!x) > 0) = []
@@ -177,7 +179,7 @@ find_n_list_to_pos numbers x y n lst
                             | (otherwise) = (find_n_list_to_pos numbers x y (n+1) lst)
                             
                             
-
+--Verifica se o tabuleira é válido
 puzzle_is_valid :: [[Int]] -> Int -> Int -> Bool
 puzzle_is_valid numbers x y
                         | (y >= height) = True --Final da tabela, nao tem mais elementos
@@ -186,15 +188,17 @@ puzzle_is_valid numbers x y
                         | (not (is_n_ok numbers x y (numbers !! y !! x) False)) = False
                         | otherwise = (puzzle_is_valid numbers (x+1) y)
 
-
+--Verifica se o grupo é vertical,
+--se altura = numero de elementos,
+--pois ai podemos preencher no inicio
 is_vertical_group :: Int -> Bool
 is_vertical_group group = ((get_group_heigth group 0 0 1000 0) - (get_group_len group 0 0) == 0)
                             
-
+--Verifica se tem mais de 1 possibilidade pra XY
 can_fill_cell :: [[Int]] -> Int -> Int -> Bool
 can_fill_cell numbers x y = ((length (find_n_list_to_pos numbers x y 0 [])) > 0)
 
-
+--Preenche os grupos verticais que tem apenas 1 possibiliade
 solve_vertical_groups :: [[Int]] -> Int -> Int -> [[Int]]
 solve_vertical_groups numbers x y
                                 | (y >= height) = numbers
@@ -202,7 +206,7 @@ solve_vertical_groups numbers x y
                                 | ((is_vertical_group (groups!!y!!x)) && (numbers!!y!!x)==0) = (solve_vertical_groups (replace_mtx numbers x y (get_max_from_arr (find_n_list_to_pos numbers x y 0 []) 0)) (x+1) y)
                                 | (otherwise) = (solve_vertical_groups numbers (x+1) y)
 
-
+--Resolve células que tem apenas 1 possibilidade de N
 solve_one_possibilities :: [[Int]] -> Int -> Int -> Int -> [[Int]]
 solve_one_possibilities numbers x y n
                                 | (y >= height && n>0) = (solve_one_possibilities numbers 0 0 (n-1))
