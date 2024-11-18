@@ -31,12 +31,6 @@ groups = [
     [17,16,16,16,16,14,18,18]
     ]
 
-get_arr_len :: [Int] -> Int
-get_arr_len [] = 0
-get_arr_len (h:lst) = 1 + (get_arr_len lst)
-
-
-
 get_max_from_arr :: [Int] -> Int -> Int
 get_max_from_arr (el:lst) n
                         | (lst == [] && n>el) = n
