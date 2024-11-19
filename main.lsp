@@ -23,7 +23,7 @@
     (17 16 16 16 16 14 18 18))
 )
 
-
+(defstruct table-snapshot numbers x y)
 
 
 (defun get-max-from-arr (lst n)
@@ -105,7 +105,7 @@
 (defun get-group-len (group x y)
   (cond ((>= y height) 0)
         ((>= x width) (get-group-len group 0 (+ y 1)))
-        ((= (nth y (nth x groups)) group) (+ 1 (get-group-len group (+ x 1) y)))
+        ((= (nth x (nth y groups)) group) (+ 1 (get-group-len group (+ x 1) y)))
         (t (get-group-len group (+ x 1) y))
   )
 )
@@ -143,11 +143,13 @@
 )
 
 (defun find-n-list-to-pos (numbers x y n lst)
-  (cond ((> (nth y (nth x numbers)) 0) '())
-        ((> n (get-group-len (nth x (nth y groups)) 0 0)) lst)
-        ((is-n-ok numbers x y n t)
-         (find-n-list-to-pos numbers x y (1+ n) (cons n lst)))
-        (t (find-n-list-to-pos numbers x y (1+ n) lst))
+  (cond 
+    ((or (>= y height) (>= x width)) ())
+    ((> (nth x (nth y numbers)) 0) '())
+    ((> n (get-group-len (nth x (nth y groups)) 0 0)) lst)
+    ((is-n-ok numbers x y n t)
+    (find-n-list-to-pos numbers x y (1+ n) (cons n lst)))
+    (t (find-n-list-to-pos numbers x y (1+ n) lst))
   )
 )
 
@@ -159,8 +161,8 @@
 (defun puzzle-is-valid (numbers x y)
   (cond ((>= y height) t)
         ((>= x width) (puzzle-is-valid numbers 0 (1+ y)))
-        ((= (nth y (nth x numbers)) 0) nil)
-        ((not (is-n-ok numbers x y (nth y (nth x numbers)) nil)) nil)
+        ((= (nth x (nth y numbers)) 0) nil)
+        ((not (is-n-ok numbers x y (nth x (nth y numbers)) nil)) nil)
         (t (puzzle-is-valid numbers (1+ x) y))
   )
 )
@@ -168,6 +170,35 @@
 
 (defun is-vertical-group (group)
   (= (- (get-group-height group 0 0 1000 0) (get-group-len group 0 0)) 0)
+)
+
+
+
+
+(defun solve-vertical-groups (numbers x y)
+  (cond 
+    ((>= y height) numbers)
+    ((>= x width) (solve-vertical-groups numbers 0 (1+ y)))
+    
+    ((and (is-vertical-group (nth x (nth y groups))) (= (nth x (nth y numbers)) 0))
+     (solve-vertical-groups (replace-mtx numbers x y (get-max-from-arr (find-n-list-to-pos numbers x y 0 '()) 0)) (1+ x) y)
+    )
+      
+    (t (solve-vertical-groups numbers (1+ x) y))
+  )
+)
+
+
+(defun solve-one-possibilities (numbers x y n)
+  (cond ((and (>= y height) (> n 0)) (solve-one-possibilities numbers 0 0 (1- n)))
+        ((>= y height) numbers)
+        ((>= x width) (solve-one-possibilities numbers 0 (1+ y) n))
+        ((= (length (find-n-list-to-pos numbers x y 0 '())) 1)
+         (solve-one-possibilities
+          (replace-mtx numbers x y (nth 0 (find-n-list-to-pos numbers x y 0 '())))
+          (1+ x) y n))
+        (t (solve-one-possibilities numbers (1+ x) y n))
+  )
 )
 
 ; OK - ALL ABOVE FUNCTIONS CHECKED
@@ -181,56 +212,72 @@
 
 
 
-(defun solve-vertical-groups (numbers x y)
-  (cond 
-    ((>= y height) numbers)
-    ((>= x width) (solve-vertical-groups numbers 0 (1+ y)))
-    ((and (is-vertical-group (nth y (nth x groups)))
-          (= (nth y (nth x numbers)) 0))
-     (solve-vertical-groups 
-      (replace-mtx numbers x y 
-                   (get-max-from-arr (find-n-list-to-pos numbers x y 0 '()) 0)) 
-      (1+ x) y))
-    (t (solve-vertical-groups numbers (1+ x) y))
+
+
+
+
+
+(defun append-pos (lst possibilities numbers x y)
+  (cond
+    ((null possibilities) lst)  ;; Se não há mais possibilidades, retornamos a lista atual
+    (t
+     (let* (
+              (possibility (car possibilities))
+              ;; Atualize as coordenadas x e y para a nova posição
+              (new-x (if (>= x (length (car numbers))) 0 (+ x 1)))
+              (new-y (if (>= x (length (car numbers))) (+ y 1) y))
+              ;; Crie um novo instantâneo da mesa com as novas coordenadas
+              (replace (make-table-snapshot :numbers (replace-mtx numbers x y possibility) :x new-x :y new-y))
+            )
+            
+       ;; Continue adicionando posições para as próximas possibilidades
+       ;(append-pos (cons (car lst) (cons replace (cdr lst))) (cdr possibilities) numbers x y))
+       (append-pos (cons replace lst) (cdr possibilities) numbers x y))
+    )
   )
 )
 
+(defun solve-puzzle (snapshots n)
+  (let* (
+            (snapshot (car snapshots))
+            (numbers (table-snapshot-numbers snapshot))
+            (x (table-snapshot-x snapshot))
+            (y (table-snapshot-y snapshot))
+            (valid (puzzle-is-valid numbers 0 0))
+            (possibilities (find-n-list-to-pos numbers x y 0 '()))
+            (zero-possibilities (zerop (length possibilities)))
+            (width (length (car numbers)))
+        )
 
-(defun solve-one-possibilities (numbers x y n)
-  (if (and (>= y height) (> n 0))
-      (solve-one-possibilities numbers 0 0 (1- n))
-      (if (>= y height)
-          numbers
-          (if (>= x width)
-              (solve-one-possibilities numbers 0 (1+ y) n)
-              (if (= (length (find-n-list-to-pos numbers x y 0 nil)) 1)
-                  (solve-one-possibilities (replace-mtx numbers x y (car (find-n-list-to-pos numbers x y 0))) (1+ x) y n)
-                  (solve-one-possibilities numbers (1+ x) y n))))))
+       (cond
+        ;((= n 10) snapshots) ;DEBUG
+        
+        (valid numbers)  ;; Se a configuração atual é válida, retorne os números
+        
+        ((>= x width)
+          (solve-puzzle (cons (make-table-snapshot :numbers numbers :x 0 :y (+ y 1))
+                            (cdr snapshots)) (1+ n)))
+                            
+        
+        ;; Verifique se o elemento já está preenchido e pode ser pulado
+        ((not (zerop (nth x (nth y numbers))))
+          (solve-puzzle 
+            (cons (make-table-snapshot :numbers numbers :x (1+ x) :y y) (cdr snapshots))
+            (1+ n)
+          )
+        )
+        
+        
 
-(defstruct table-snapshot
-  numbers x y)
+        ;; Se houver possibilidades, adicione novos snapshots à pilha
+        ((not zero-possibilities) (solve-puzzle (append-pos (cdr snapshots) possibilities numbers x y) (1+ n)))
+        
+        ;; Se não há mais jogadas possíveis, continue com o próximo snapshot
+        (zero-possibilities (solve-puzzle (cdr snapshots) (1+ n)))
 
-(defun append-pos (lst possibilities numbers x y)
-  (if (null possibilities)
-      lst
-      (if (>= x width)
-          (append-pos (cons (make-table-snapshot :numbers (replace-mtx numbers 0 (1+ y) (car possibilities)) :x 0 :y (1+ y)) lst) (cdr possibilities) numbers x y)
-          (append-pos (cons (make-table-snapshot :numbers (replace-mtx numbers x y (car possibilities)) :x (1+ x) :y y) lst) (cdr possibilities) numbers x y))))
-
-(defun solve-puzzle (lst n)
-  (let* ((item (car lst))
-         (numbers (table-snapshot-numbers item))
-         (x (table-snapshot-x item))
-         (y (table-snapshot-y item))
-         (valid (puzzle-is-valid numbers 0 0))
-         (zero-possibilities (zerop (length (find-n-list-to-pos numbers x y 0 nil))))
-         (possibilities (find-n-list-to-pos numbers x y 0 nil)))
-    (cond
-      (valid numbers)
-      ((>= x width) (solve-puzzle (cons (make-table-snapshot :numbers numbers :x 0 :y (1+ y)) (cdr lst)) (1+ n)))
-      ((/= (nth x (nth y numbers)) 0) (solve-puzzle (cons (make-table-snapshot :numbers numbers :x (1+ x) :y y) (cdr lst)) (1+ n)))
-      (zero-possibilities (solve-puzzle (append-pos (cons item lst) possibilities numbers x y) (1+ n)))
-      (t (solve-puzzle (cdr lst) (1+ n))))))
+      )
+  )
+)
 
 
 
@@ -245,7 +292,7 @@
 
 ;(write (main))
 
-(write (print-table _numbers)); - OK
+;(write (print-table _numbers)); - OK
 
 ;(write (get-group-len 0 0 0)) - OK
 
@@ -263,9 +310,40 @@
 
 ;(write (can-fill-cell _numbers 0 0)) - OK
 
-;(write (puzzle-is-valid _numbers 0 0)) -OK
+;(write (puzzle-is-valid _numbers 0 0)) - OK
 
 ;(write (is-vertical-group 06)) - OK
+
+;(write (print-table (solve-vertical-groups _numbers 0 0))) ; - OK
+
+;(write (print-table (solve-one-possibilities (solve-vertical-groups _numbers 0 0) 0 0 20))) ; - OK
+
+(setq semi-solved 
+  (solve-one-possibilities (solve-vertical-groups _numbers 0 0) 0 0 20)
+)
+
+(setq fstack 
+  (list (make-table-snapshot
+    :numbers semi-solved
+    :x 0
+    :y 0
+  ))
+)
+
+(setq solved (solve-puzzle fstack 0) )
+
+(write (print-table solved))
+
+(setq s1 (append-pos fstack (list 4 3) _numbers 0 0))
+(setq s2 (append-pos s1 (list 5 6) _numbers 1 0))
+
+;(write s2)
+
+;(write (print-table solved))
+
+;(write (append-pos fstack (list 1 2 3) _numbers 0 0))
+
+
 
 
 
