@@ -12,6 +12,7 @@
     (0 0 5 3 0 0 0 0))
 )
 
+;Grupos de numeros no tabuleiro, cada grupo possui seu numero
 (setq groups 
   '((00 00 01 01 02 03 04 04)
     (00 00 05 01 06 03 03 04)
@@ -23,15 +24,18 @@
     (17 16 16 16 16 14 18 18))
 )
 
+; Cria uma estrutura pra guardar o estado do tabuleiro,
+; usado para fazer pilha pro backtracking
 (defstruct table-snapshot numbers x y)
 
-
+; Pega o máximo valorzinho de uma lista
 (defun get-max-from-arr (lst n)
   (cond
     ((null lst) n)
     ((> (car lst) n) (get-max-from-arr (cdr lst) (car lst)))
     (t (get-max-from-arr (cdr lst) n))))
 
+; Modifica uma elemento na posicao n de uma lista
 (defun replace-n (lst n val)
   (if (< n 0)
       lst
@@ -39,11 +43,13 @@
           (cons val (cdr lst))
           (cons (car lst) (replace-n (cdr lst) (1- n) val)))))
 
+; Modifica um elemento na posicao xy de uma matriz
 (defun replace-mtx (mtx x y val)
   (if (zerop y)
       (cons (replace-n (car mtx) x val) (cdr mtx))
       (cons (car mtx) (replace-mtx (cdr mtx) x (1- y) val))))
 
+; Printa os numeros da linha y
 (defun print-line (numbers x y)
   (if (>= x (1- width))
       (format nil " ~A " (nth x (nth y numbers)))
@@ -51,6 +57,8 @@
           (format nil " ~A |~A" (nth x (nth y numbers)) (print-line numbers (1+ x) y))
           (format nil " ~A  ~A" (nth x (nth y numbers)) (print-line numbers (1+ x) y)))))
 
+; Printa as paredes de cima, casa elemento x y
+; Printa a tabela interia de forma recursiva
 (defun print-line-up-wall (x y)
   (cond
     ((>= x width) "+")
@@ -67,17 +75,12 @@
       (format nil "~A~%|~A|~%~A" (print-line-up-wall 0 y) (print-line numbers 0 y) (print-line-up-wall 0 (1+ y)))
       (format nil "~A~%|~A|~%~A" (print-line-up-wall 0 y) (print-line numbers 0 y) (print-table-rec numbers (1+ y)))))
 
+; Apenas chamada print_table_rec com os parametros corretos,
+; essa funcao é pra simplificar na hora de printar a tabela
 (defun print-table (numbers)
   (print-table-rec numbers 0))
-  
-  
-  
-  
-  
-  
-  
-  
 
+; Verifica se um n já está em um grupo
 (defun already-in-group-rec (numbers group-name n x y)
   (cond ((>= y height) nil)
         ((>= x width) (already-in-group-rec numbers group-name n 0 (+ y 1)))
@@ -86,9 +89,11 @@
   )
 )
 
+; Mesmo esquema da print_table, chama already_in_group_rec, serve para simplificar
 (defun already-in-group (numbers group-name n)
   (already-in-group-rec numbers group-name n 0 0))
 
+; Retorna a altura de um grupo
 (defun get-group-height (group x y miny maxy)
   (cond ((>= y height) (+ 1 (- maxy miny)))
         ((>= x width) (get-group-height group 0 (+ y 1) miny maxy))
@@ -102,6 +107,7 @@
   )
 )
 
+; Retorna quantidade celulas de um grupo
 (defun get-group-len (group x y)
   (cond ((>= y height) 0)
         ((>= x width) (get-group-len group 0 (+ y 1)))
@@ -110,6 +116,7 @@
   )
 )
 
+; Verificação regra adjacente
 (defun adj-check (numbers x y n)
   (cond ((and (> y 0)
               (>= n (nth x (nth (1- y) numbers)))
@@ -123,6 +130,7 @@
   )
 )
 
+; Verificação regra ortogonal
 (defun ortg-check (numbers x y n)
   (cond ((and (> x 0) (= n (nth (1- x) (nth y numbers)))) nil)
         ((and (< x (1- width)) (= n (nth (1+ x) (nth y numbers)))) nil)
@@ -132,6 +140,7 @@
   )
 )
 
+; Verifica se pode colocar N em X Y
 (defun is-n-ok (numbers x y n chk-in-group)
   (cond ((> n (get-group-len (nth x (nth y groups)) 0 0)) nil)
         ((and chk-in-group 
@@ -142,6 +151,8 @@
   )
 )
 
+; Procura quais n podem ser colocados na posição XY
+; no caso retorna as possibilidades pra XY
 (defun find-n-list-to-pos (numbers x y n lst)
   (cond 
     ((or (>= y height) (>= x width)) ())
@@ -153,11 +164,12 @@
   )
 )
 
+; Verifica se tem mais de 1 possibilidade pra XY
 (defun can-fill-cell (numbers x y)
   (> (length (find-n-list-to-pos numbers x y 0 '())) 0)
 )
 
-
+; Verifica se o tabuleiro é válido
 (defun puzzle-is-valid (numbers x y)
   (cond ((>= y height) t)
         ((>= x width) (puzzle-is-valid numbers 0 (1+ y)))
@@ -167,14 +179,13 @@
   )
 )
 
-
+; Verifica se o grupo é vertical, se altura = numero de elementos
+; pois aí podemos preencher no inicio
 (defun is-vertical-group (group)
   (= (- (get-group-height group 0 0 1000 0) (get-group-len group 0 0)) 0)
 )
 
-
-
-
+; Resolve os grupos verticais que tem apenas 1 possibilidade
 (defun solve-vertical-groups (numbers x y)
   (cond 
     ((>= y height) numbers)
@@ -188,7 +199,7 @@
   )
 )
 
-
+; Resolve células que tem apenas 1 possibilidade de N
 (defun solve-one-possibilities (numbers x y n)
   (cond ((and (>= y height) (> n 0)) (solve-one-possibilities numbers 0 0 (1- n)))
         ((>= y height) numbers)
@@ -201,42 +212,27 @@
   )
 )
 
-; OK - ALL ABOVE FUNCTIONS CHECKED
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+; Cria X-possibilities TableSnapshot, cria uma nova TableSnapshot para cada
+; possibilidade, salvando coordenadas de cada simulação e a tabela de numbers
 (defun append-pos (lst possibilities numbers x y)
   (cond
-    ((null possibilities) lst)  ;; Se não há mais possibilidades, retornamos a lista atual
+    ((null possibilities) lst)  ; Se não há mais possibilidades, retornamos a lista atual
     (t
      (let* (
               (possibility (car possibilities))
-              ;; Atualize as coordenadas x e y para a nova posição
+              ; Atualize as coordenadas x e y para a nova posição
               (new-x (if (>= x (length (car numbers))) 0 (+ x 1)))
               (new-y (if (>= x (length (car numbers))) (+ y 1) y))
-              ;; Crie um novo instantâneo da mesa com as novas coordenadas
+              ; Crie um novo instantâneo da mesa com as novas coordenadas
               (replace (make-table-snapshot :numbers (replace-mtx numbers x y possibility) :x new-x :y new-y))
             )
             
-       ;; Continue adicionando posições para as próximas possibilidades
-       ;(append-pos (cons (car lst) (cons replace (cdr lst))) (cdr possibilities) numbers x y))
        (append-pos (cons replace lst) (cdr possibilities) numbers x y))
     )
   )
 )
 
+; resolve usando backtracking e pilha, vai jogando as novas possibilidades na pilha
 (defun solve-puzzle (snapshots n)
   (let* (
             (snapshot (car snapshots))
@@ -250,16 +246,13 @@
         )
 
        (cond
-        ;((= n 10) snapshots) ;DEBUG
-        
-        (valid numbers)  ;; Se a configuração atual é válida, retorne os números
+        (valid numbers)  ; Se a configuração atual é válida, retorne os números
         
         ((>= x width)
           (solve-puzzle (cons (make-table-snapshot :numbers numbers :x 0 :y (+ y 1))
                             (cdr snapshots)) (1+ n)))
-                            
         
-        ;; Verifique se o elemento já está preenchido e pode ser pulado
+        ; Verifique se o elemento já está preenchido e pode ser pulado
         ((not (zerop (nth x (nth y numbers))))
           (solve-puzzle 
             (cons (make-table-snapshot :numbers numbers :x (1+ x) :y y) (cdr snapshots))
@@ -267,12 +260,10 @@
           )
         )
         
-        
-
-        ;; Se houver possibilidades, adicione novos snapshots à pilha
+        ; Se houver possibilidades, add novos snapshots à pilha
         ((not zero-possibilities) (solve-puzzle (append-pos (cdr snapshots) possibilities numbers x y) (1+ n)))
         
-        ;; Se não há mais jogadas possíveis, continue com o próximo snapshot
+        ; Se não há mais jogadas possíveis, continue com o próximo snapshot
         (zero-possibilities (solve-puzzle (cdr snapshots) (1+ n)))
 
       )
